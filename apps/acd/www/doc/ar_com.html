@@ -1,0 +1,102 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=ISO-8859-1">
+<title>Module ar_com</title>
+<link rel="stylesheet" type="text/css" href="stylesheet.css" title="EDoc">
+</head>
+<body bgcolor="white">
+<div class="navbar"><a name="#navbar_top"></a><table width="100%" border="0" cellspacing="0" cellpadding="2" summary="navigation bar"><tr><td><a href="overview-summary.html" target="overviewFrame">Overview</a></td><td><a href="http://www.erlang.org/"><img src="erlang.png" align="right" border="0" alt="erlang logo"></a></td></tr></table></div>
+<hr>
+
+<h1>Module ar_com</h1>
+<ul class="index"><li><a href="#description">Description</a></li><li><a href="#types">Data Types</a></li><li><a href="#index">Function Index</a></li><li><a href="#functions">Function Details</a></li></ul>Arduino communication API.
+
+<p><b>Version:</b> 1.0</p>
+<p><b>Behaviours:</b> <a href="gen_server.html"><tt>gen_server</tt></a>.</p>
+<p><b>Authors:</b> Andrey Andruschenko (<a href="mailto:apofiget@gmail.com"><tt>apofiget@gmail.com</tt></a>).</p>
+<p><b>References</b><ul><li><a href="https://github.com/daapp/web-machining/blob/master/NOTES.org">Project refrence on Github.</a></li></ul></p>
+
+<h2><a name="description">Description</a></h2>Arduino communication API.
+  Module works/tested with Arduino based on Grbl 0.8c firwmware.
+  Communicate with Arduino via serial port that name placed in app.config as {tty, "/path/to/dev/file"}.
+<h2><a name="types">Data Types</a></h2>
+
+<h3 class="typedecl"><a name="type-arduino_reply">arduino_reply()</a></h3>
+<p><tt>arduino_reply() = Tuples</tt>
+<ul class="definitions"><li><tt>Tuples = [Tuple]</tt></li><li><tt>Tuple = {id, integer()} | {command, string()} | {reply, Reply}</tt></li><li><tt>Reply = {status, Status} | {version, string()} | {R, I}</tt></li><li><tt>R = ok | error | button | sensor | status | unknown_event</tt></li><li><tt>I = string()</tt></li><li><tt>Status = {{state, ArduinoStatus}, {position, ToolPosition}}</tt></li><li><tt>ArduinoStatus = string()</tt></li><li><tt>ToolPosition = string()</tt></li></ul></p>
+
+
+<h2><a name="index">Function Index</a></h2>
+<table width="100%" border="1" cellspacing="0" cellpadding="2" summary="function index"><tr><td valign="top"><a href="#cont-0">cont/0</a></td><td>Arduino cyrcle start.</td></tr>
+<tr><td valign="top"><a href="#hold-0">hold/0</a></td><td>Arduino feed hold.</td></tr>
+<tr><td valign="top"><a href="#mode-0">mode/0</a></td><td>Get current work mode.</td></tr>
+<tr><td valign="top"><a href="#mode-1">mode/1</a></td><td>Set gen_server internal mode.</td></tr>
+<tr><td valign="top"><a href="#reset-0">reset/0</a></td><td>Make Arduino reset - send Ctrl+X to controller.</td></tr>
+<tr><td valign="top"><a href="#send-1">send/1</a></td><td>Send command to Arduino.</td></tr>
+<tr><td valign="top"><a href="#start-0">start/0</a></td><td>Start gen_server.</td></tr>
+<tr><td valign="top"><a href="#status-0">status/0</a></td><td>Get current Arduino status and tool position.</td></tr>
+<tr><td valign="top"><a href="#stop-0">stop/0</a></td><td>Stop gen_server.</td></tr>
+<tr><td valign="top"><a href="#version-0">version/0</a></td><td>Get Grbl version.</td></tr>
+</table>
+
+<h2><a name="functions">Function Details</a></h2>
+
+<h3 class="function"><a name="cont-0">cont/0</a></h3>
+<div class="spec">
+<p><tt>cont() -&gt; <a href="#type-arduino_reply">arduino_reply()</a> | {error, daemon_locked} | {error, not_ready}</tt><br></p>
+</div><p>Arduino cyrcle start</p>
+
+<h3 class="function"><a name="hold-0">hold/0</a></h3>
+<div class="spec">
+<p><tt>hold() -&gt; <a href="#type-arduino_reply">arduino_reply()</a> | {error, daemon_locked} | {error, port_hold} | {error, not_ready}</tt><br></p>
+</div><p>Arduino feed hold.</p>
+
+<h3 class="function"><a name="mode-0">mode/0</a></h3>
+<div class="spec">
+<p><tt>mode() -&gt; {ok, {command, {pid(), reference()}}} | {ok, {file, {pid(), reference()}}}</tt><br></p>
+</div><p>Get current work mode</p>
+
+<h3 class="function"><a name="mode-1">mode/1</a></h3>
+<div class="spec">
+<p><tt>mode(M::Mode) -&gt; ok | {ok, Id} | {error, daemon_locked}</tt>
+<ul class="definitions"><li><tt>Id = integer()</tt></li><li><tt>Mode = file | command</tt></li></ul></p>
+</div><p>Set gen_server internal mode.
+  In "file" mode, "send" function calls allowed only from process that set's "file" mode
+  In "command" mode, "send" function calls allowed from any process</p>
+
+<h3 class="function"><a name="reset-0">reset/0</a></h3>
+<div class="spec">
+<p><tt>reset() -&gt; <a href="#type-arduino_reply">arduino_reply()</a> | {error, daemon_locked} | {error, not_ready}</tt><br></p>
+</div><p>Make Arduino reset - send Ctrl+X to controller</p>
+
+<h3 class="function"><a name="send-1">send/1</a></h3>
+<div class="spec">
+<p><tt>send(Cmd::string()) -&gt; <a href="#type-arduino_reply">arduino_reply()</a> | {error, daemon_locked} | {error, not_ready}</tt><br></p>
+</div><p>Send command to Arduino</p>
+
+<h3 class="function"><a name="start-0">start/0</a></h3>
+<div class="spec">
+<p><tt>start() -&gt; {ok, pid()} | {error, Reason}</tt><br></p>
+</div><p>Start gen_server</p>
+
+<h3 class="function"><a name="status-0">status/0</a></h3>
+<div class="spec">
+<p><tt>status() -&gt; <a href="#type-arduino_reply">arduino_reply()</a> | {error, daemon_locked} | {error, not_ready}</tt><br></p>
+</div><p>Get current Arduino status and tool position</p>
+
+<h3 class="function"><a name="stop-0">stop/0</a></h3>
+<div class="spec">
+<p><tt>stop() -&gt; ok</tt><br></p>
+</div><p>Stop gen_server</p>
+
+<h3 class="function"><a name="version-0">version/0</a></h3>
+<div class="spec">
+<p><tt>version() -&gt; {ok, string()} | {error, not_ready}</tt><br></p>
+</div><p>Get Grbl version</p>
+<hr>
+
+<div class="navbar"><a name="#navbar_bottom"></a><table width="100%" border="0" cellspacing="0" cellpadding="2" summary="navigation bar"><tr><td><a href="overview-summary.html" target="overviewFrame">Overview</a></td><td><a href="http://www.erlang.org/"><img src="erlang.png" align="right" border="0" alt="erlang logo"></a></td></tr></table></div>
+<p><i>Generated by EDoc, Mar 21 2014, 15:58:31.</i></p>
+</body>
+</html>

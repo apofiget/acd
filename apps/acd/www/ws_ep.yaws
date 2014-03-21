@@ -1,0 +1,11 @@
+<erl>
+out(A) ->
+    Opts = [
+            {origin,            "http://" ++ (A#arg.headers)#headers.host},
+            {keepalive,         true},
+            {keepalive_timeout, 20},
+            {drop_on_timeout,   true},
+            {close_if_unmasked, false}
+           ],
+    {websocket, acd_ws, Opts}.
+</erl>

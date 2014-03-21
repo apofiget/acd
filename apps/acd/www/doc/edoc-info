@@ -1,0 +1,4 @@
+%% encoding: UTF-8
+{application,acd}.
+{packages,[]}.
+{modules,[acd_app,acd_ev_ws_handler,acd_sup,acd_ws,ar_com,commons,fm,y_embed]}.

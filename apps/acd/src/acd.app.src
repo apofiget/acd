@@ -1,0 +1,12 @@
+{application, acd,
+ [
+  {description, "Arduino web machining control daemon"},
+  {vsn, "0.8"},
+  {registered, []},
+  {applications, [
+                  kernel,
+                  stdlib
+                 ]},
+  {mod, { acd_app, []}},
+  {env, []}
+ ]}.
