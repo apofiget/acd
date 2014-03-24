@@ -1,12 +1,11 @@
 %% @author Andrey Andruschenko <apofiget@gmail.com>
 %% @version 1.0
-%% @doc Arduino communication API.
+%% @doc Grbl API
 %% Module works/tested with Arduino based on Grbl 0.8c firwmware.
-%% Communicate with Arduino via serial port that name placed in app.config as {tty, "/path/to/dev/file"}.
 %% @reference <a href="https://github.com/daapp/web-machining/blob/master/NOTES.org">Project refrence on Github.</a>
 %% @end
 
--module(ar_com).
+-module(ar_grbl).
 
 -compile([{parse_transform, lager_transform}]).
 
@@ -16,8 +15,8 @@
 
 -export([start/0]).
 
--export([send/1,stop/0,read_com/2, version/0, mode/1, 
-		 mode/0, status/0, reset/0, hold/0, cont/0]).
+-export([send/1,stop/0, firmware_version/0, mode/1, 
+		 mode/0, current_status/0, reset/0, hold/0, cont/0]).
 
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2,
          terminate/2, code_change/3]).
@@ -72,11 +71,11 @@ mode(M) -> gen_server:call(?MODULE, {mode, M}).
 
 mode() -> gen_server:call(?MODULE, {mode}).
 
-%% @spec status() -> arduino_reply() | {error, daemon_locked} | {error, not_ready}
+%% @spec current_status() -> arduino_reply() | {error, daemon_locked} | {error, not_ready}
 %% @doc Get current Arduino status and tool position
 %% @end
 
-status() -> gen_server:call(?MODULE, {send, "?"}, commons:get_opt(tty_timeout)).
+current_status() -> gen_server:call(?MODULE, {send, "?"}, commons:get_opt(tty_timeout)).
 
 %% @spec reset() -> arduino_reply() | {error, daemon_locked} | {error, not_ready}
 %% @doc Make Arduino reset - send Ctrl+X to controller
@@ -103,11 +102,11 @@ hold() -> gen_server:call(?MODULE, {hold}).
 
 cont() -> gen_server:call(?MODULE, {cont}).
 
-%% @spec version() -> {ok, string()} | {error, not_ready}
+%% @spec firmware_version() -> {ok, string()} | {error, not_ready}
 %% @doc Get Grbl version
 %% @end
 
-version() -> gen_server:call(?MODULE, {ver}). 
+firmware_version() -> gen_server:call(?MODULE, {ver}). 
 
 %% @hidden
 init([]) ->
@@ -123,7 +122,7 @@ init([]) ->
 	                fun(N) -> serctl:ospeed(N, b9600) end
 	            ]
 	        ),
-	    	Prp = spawn_link(?MODULE, read_com, [FD,self()]),
+	    	Prp = spawn_link(ar_serial, read, [FD,self(),"\r\n"]),
 	   		ok = serctl:tcsetattr(FD, tcsanow, Termios),
 			{ok, #state{fd=FD,com_read=Prp,status=#status{id=commons:id(4)}}};
 	   	{error, Reason} -> {stop, Reason}
@@ -258,52 +257,6 @@ terminate(_Reason, State) ->
 %% @hidden
 code_change(_OldVsn, State, _Extra) ->
     {ok, State}.
-
-%%% Internals
-%% @hidden
-read_com(FD, Parent) ->
-	process_flag(trap_exit, true),
-	read(FD, 0, [], Parent).
-
-%% @hidden
-read(FD, T, Acc, Parent) when T < 5000 ->
-    case serctl:read(FD, 1) of
-    	{ok, Data} -> 
-    		Nacc = clr_1310(Acc ++ binary_to_list(Data)),
-	    		case is_eol(Nacc) of 
-	    			false -> 
-	    				read(FD,0,Nacc,Parent);
-	    			true ->
-	    				case what_happens(Nacc) of
-	    					{data, Str} ->  
-	    						read(FD,0,Nacc,Parent);
-	    					E ->
-	    						Parent ! {data, E},
-	    						read(FD, 0,[], Parent)
-	    				end
-	    		end;
-        {error, eagain} ->
-            timer:sleep(10),
-            read(FD,T+10, Acc, Parent);
-        Error -> 
-        	if length(Acc) > 0 -> Parent ! {data, Acc};
-        		true -> {error, Error}
-        	end 
-    end;
-
-read(FD, _T, [], Parent) -> 
-	read(FD,0,[],Parent);
-
-read(FD, _T, Acc, Parent) -> 
-	Parent ! {data, {unknown_event, Acc}},
-	read(FD,0,[],Parent).
-
-%% @hidden
-is_eol(Str) ->
- case string:str(Str,"\r\n") - 1 of
- 	N when N > 0 -> true;
- 	_ -> false
-	end.
 
 %% @hidden
 is_ok(E) ->
