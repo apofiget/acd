@@ -30,19 +30,37 @@
         ,trace_file = "" :: string()}).     
         %% trace file name
 
-%% @spec send(Cmd :: string) -> ok
+%% @spec send(Cmd :: string()) -> ok
 %% @doc Send command to serial port
 %% @end
 send(Cmd) -> gen_server:cast(?MODULE, {send, Cmd}).
 
 %% @hidden
+%% Only for debugging purposes, when server start as start({ar_serial, reply, "\r\n"})
 reply(Str) -> io:format("Reply: ~p~n", [Str]). 
+
+%% @spec start(Params) -> {ok, Pid :: pid()} | {stop, Error :: any()}
+%%      Params = {Module, Function, LineEndCharacters} | {Fun, LineEndCharacters}
+%%      Module = atom()
+%%      Function = atom()
+%%      Fun = fun()
+%%      LineEndCharacters = string()
+%% @doc Start communication server, with given callback specified as {Module, Function, LineEndCharacters} <br/>
+%% or {Fun, LineEndCharacters}.
+%% @end
+
+start({F,LineEnd}) when is_function(F) -> 
+    gen_server:start_link({local, ?MODULE}, ?MODULE, [{"", F, LineEnd}], []);
 
 start({M,F,LineEnd}) ->
     gen_server:start_link({local, ?MODULE}, ?MODULE, [{M, F, LineEnd}], []).
 
+%% @spec start() -> {ok, Pid :: pid()} | {stop, Error :: any()}
+%% @doc Start communication server, with default callback specification - module ar_grbl, function reply and LineEnd - "\r\n".
+%% @end
+
 start() ->
-    gen_server:start_link({local, ?MODULE}, ?MODULE, [{ar_com, reply, "\r\n"}], []).
+    gen_server:start_link({local, ?MODULE}, ?MODULE, [{ar_grbl, reply, "\r\n"}], []).
 
 %% @hidden
 init([{M,F,LineEnd}]) ->
@@ -79,7 +97,11 @@ handle_cast(_Msg, State) ->
     {noreply, State}.
 
 %% @hidden
-handle_info({data, Str}, #state{callback = {M,F}} = State) ->
+handle_info({data, Str}, #state{callback = {_M,F}} = State) when is_function(F) ->
+    F(Str),
+    {noreply, State}; 
+
+handle_info({data, Str}, #state{callback = {M,F}} = State) when is_atom(M), is_atom(F)  ->
     erlang:apply(M, F, [Str]),
     {noreply, State}; 
 
