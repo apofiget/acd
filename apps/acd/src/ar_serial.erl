@@ -12,7 +12,7 @@
 
 -compile([{parse_transform, lager_transform}]).
 
--export([read/3, send/1, reply/1]).
+-export([read/3, send/1]).
 
 -export([start/0, start/1]).
 
@@ -34,10 +34,6 @@
 %% @doc Send command to serial port
 %% @end
 send(Cmd) -> gen_server:cast(?MODULE, {send, Cmd}).
-
-%% @hidden
-%% Only for debugging purposes, when server start as start({ar_serial, reply, "\r\n"})
-reply(Str) -> io:format("Reply: ~p~n", [Str]). 
 
 %% @spec start(Params) -> {ok, Pid :: pid()} | {stop, Error :: any()}
 %%      Params = {Module, Function, LineEndCharacters} | {Fun, LineEndCharacters}
