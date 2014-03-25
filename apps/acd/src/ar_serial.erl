@@ -47,7 +47,8 @@ start_trace(F) -> gen_server:call(?MODULE, {start_trace, F}).
 stop_trace() -> gen_server:call(?MODULE, {stop_trace}).
 
 %% @spec reset_device() -> ok
-%% @doc Hardware controller reset
+%% @doc Controller hardware reset.
+%% Function reset DTR/RTS.
 %% @end
 
 reset_device() -> gen_server:cast(?MODULE, {reset}). 
