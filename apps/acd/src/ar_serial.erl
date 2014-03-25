@@ -12,7 +12,7 @@
 
 -compile([{parse_transform, lager_transform}]).
 
--export([read/3, send/1]).
+-export([read/3, send/1, start_trace/1, stop_trace/0]).
 
 -export([start/0, start/1]).
 
@@ -27,13 +27,23 @@
         %% read from serial port process PID
         ,callback :: {atom(), atom()}
         %% callback {module, function}
-        ,trace_file = "" :: string()}).     
-        %% trace file name
+        ,trace = "" :: tuple()}).     
+        %% Lager trace ID
 
 %% @spec send(Cmd :: string()) -> ok
 %% @doc Send command to serial port
 %% @end
 send(Cmd) -> gen_server:cast(?MODULE, {send, Cmd}).
+
+%% @spec start_trace(F :: string()) -> ok | {error, atom()}
+%% @doc Start controller commands and replies tracing to file F.
+%% @end
+start_trace(F) -> gen_server:call(?MODULE, {start_trace, F}). 
+
+%% @spec stop_trace() -> ok
+%% @doc Stop controller commands and replies tracing
+%% @end
+stop_trace() -> gen_server:call(?MODULE, {stop_trace}).
 
 %% @spec start(Params) -> {ok, Pid :: pid()} | {stop, Error :: any()}
 %%      Params = {Module, Function, LineEndCharacters} | {Fun, LineEndCharacters}
@@ -79,6 +89,17 @@ init([{M,F,LineEnd}]) ->
      end.
 
 %% @hidden
+handle_call({start_trace, F}, _From, State) ->
+R = case lager:trace_file(F, [{module, ?MODULE}], debug) of
+        {ok, Trace} -> NewState = State#state{trace = Trace}, ok;
+        E -> NewState = State, E
+    end,
+    {reply, R, NewState};
+
+handle_call({stop_trace}, _From, State) -> 
+    lager:stop_trace(State#state.trace), 
+    {reply, ok , State#state{trace = ""}};
+
 handle_call(_Request, _From, State) ->
     {reply, ok, State}.
 
@@ -86,7 +107,7 @@ handle_call(_Request, _From, State) ->
 handle_cast({send, Cmd}, #state{fd = LowLevelPid} = State) ->
     case serctl:write(LowLevelPid, list_to_binary(Cmd++["\n"])) of
         {error, Reason} ->  {stop, Reason, State};
-        _ -> {noreply, State}
+        _ -> trace("Command: " ++ Cmd, State#state.trace), {noreply, State}
     end;
 
 handle_cast(_Msg, State) ->
@@ -95,10 +116,12 @@ handle_cast(_Msg, State) ->
 %% @hidden
 handle_info({data, Str}, #state{callback = {_M,F}} = State) when is_function(F) ->
     F(Str),
+    trace("Reply: " ++ Str, State#state.trace),
     {noreply, State}; 
 
 handle_info({data, Str}, #state{callback = {M,F}} = State) when is_atom(M), is_atom(F)  ->
     erlang:apply(M, F, [Str]),
+    trace("Reply: " ++ Str, State#state.trace),
     {noreply, State}; 
 
 handle_info({'EXIT',Pid,Reason}, #state{reader = Pid, callback = {M,F}} = State) ->
@@ -116,6 +139,11 @@ terminate(_Reason, State) ->
 %% @hidden
 code_change(_OldVsn, State, _Extra) ->
     {ok, State}.
+
+%% @hidden
+trace(_Str, "") -> ok;
+trace(Str, Trace) when is_tuple(Trace) ->
+    lager:debug("~p~n",[Str]). 
 
 %% @spec read(FD :: pid(), Parent :: pid(), LineEnd :: string()) -> ok
 %% @doc Start serial port reader. Read data from serial port, that identified as low-level
