@@ -12,7 +12,8 @@
 
 -compile([{parse_transform, lager_transform}]).
 
--export([read/3, send/1, start_trace/1, stop_trace/0]).
+-export([read/3, send/1, reset_device/0, 
+         start_trace/1, stop_trace/0]).
 
 -export([start/0, start/1]).
 
@@ -44,6 +45,12 @@ start_trace(F) -> gen_server:call(?MODULE, {start_trace, F}).
 %% @doc Stop controller commands and replies tracing
 %% @end
 stop_trace() -> gen_server:call(?MODULE, {stop_trace}).
+
+%% @spec reset_device() -> ok
+%% @doc Hardware controller reset
+%% @end
+
+reset_device() -> gen_server:cast(?MODULE, {reset}). 
 
 %% @spec start(Params) -> {ok, Pid :: pid()} | {stop, Error :: any()}
 %%      Params = {Module, Function, LineEndCharacters} | {Fun, LineEndCharacters}
@@ -109,6 +116,24 @@ handle_cast({send, Cmd}, #state{fd = LowLevelPid} = State) ->
         {error, Reason} ->  {stop, Reason, State};
         _ -> trace("Command: " ++ Cmd, State#state.trace), {noreply, State}
     end;
+
+handle_cast({reset}, #state{fd = LowLevelPid} = State) ->
+%%% ioctl request values for Linux!
+    TIOCMGET = 16#5415,
+    TIOCMSET = 16#5418,
+    TIOCM_DTR = 16#002,
+    TIOCM_RTS = 16#004,
+
+    {ok, <<Ctl:4/native-unsigned-integer-unit:8>>} = serctl:ioctl(LowLevelPid, TIOCMGET, <<0:32>>),
+
+    Off = Ctl band bnot ( TIOCM_DTR bor TIOCM_RTS ),
+    {ok, <<Ctl1:4/native-unsigned-integer-unit:8>>} = serctl:ioctl(LowLevelPid, TIOCMSET, <<Off:4/native-unsigned-integer-unit:8>>),
+
+    timer:sleep(500), 
+
+    On = Ctl1 bor ( TIOCM_DTR bor TIOCM_RTS ),
+    serctl:ioctl(LowLevelPid, TIOCMSET, <<On:4/native-unsigned-integer-unit:8>>),
+    {noreply, State};
 
 handle_cast(_Msg, State) ->
     {noreply, State}.
