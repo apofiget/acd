@@ -16,22 +16,21 @@
 -export([start/0]).
 
 -export([send/1,stop/0, firmware_version/0, mode/1, 
-		 mode/0, current_status/0, reset/0, hold/0, cont/0]).
+		 mode/0, current_status/0, reset_grbl/0, hold/0, cont/0, reply/1]).
 
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2,
          terminate/2, code_change/3]).
 
--record(status,{id :: integer()
-				,command="" :: string()}).
-
--record(state,{to="" :: {pid(), reference()} | []
+-record(state,{
+			  id :: integer()
+			  ,command = "" :: string()
+			  ,reply = "" :: string()
+			  ,to="" :: {pid(), reference()} | []
 			  ,mon_ref="" :: reference() | []
-			  ,fd :: pid()
-			  ,com_read :: pid()
 			  ,fin_state=idle :: idle | wait | hold
 			  ,ver="" :: string() | []
 			  ,mode=command :: command | file 
-			  ,status=#status{}}).
+			  }).
 
 %% @type arduino_reply() = Tuples
 %%       Tuples = [Tuple]
@@ -55,6 +54,14 @@ start() -> gen_server:start_link({local, ?MODULE}, ?MODULE, [], []).
 
 stop() -> gen_server:call(?MODULE, {stop}).
 
+%% @spec reply(S :: string) -> ok
+%% @doc Get reply from serial port.
+%% Function used as callback function for ar_serial, when data received from port.
+%% Function should't be used manually!
+%% @end
+
+reply(S) -> gen_server:cast(?MODULE, {reply, S}).
+
 %% @spec mode(Mode) -> ok | {ok, Id} | {error, daemon_locked}
 %%			Id = integer()
 %%			Mode = file | command
@@ -77,11 +84,11 @@ mode() -> gen_server:call(?MODULE, {mode}).
 
 current_status() -> gen_server:call(?MODULE, {send, "?"}, commons:get_opt(tty_timeout)).
 
-%% @spec reset() -> arduino_reply() | {error, daemon_locked} | {error, not_ready}
+%% @spec reset_grbl() -> arduino_reply() | {error, daemon_locked} | {error, not_ready}
 %% @doc Make Arduino reset - send Ctrl+X to controller
 %% @end
 
-reset() -> gen_server:call(?MODULE, {send, "\^x"}, commons:get_opt(tty_timeout)).
+reset_grbl() -> gen_server:call(?MODULE, {send, "\^x"}, commons:get_opt(tty_timeout)).
 
 %% @spec send(Cmd :: string()) -> arduino_reply() | {error, daemon_locked} | {error, not_ready}
 %% @doc Send command to Arduino
@@ -109,38 +116,21 @@ cont() -> gen_server:call(?MODULE, {cont}).
 firmware_version() -> gen_server:call(?MODULE, {ver}). 
 
 %% @hidden
-init([]) ->
-	process_flag(trap_exit, true),
-	case serctl:open(commons:get_opt(tty)) of
-		{ok, FD} -> 
-	    Termios = lists:foldl(
-	        fun(Fun, Acc) -> Fun(Acc) end,
-	            serctl:mode(raw),
-	            [
-	                fun(N) -> serctl:flow(N, false) end,
-	                fun(N) -> serctl:ispeed(N, b9600) end,
-	                fun(N) -> serctl:ospeed(N, b9600) end
-	            ]
-	        ),
-	    	Prp = spawn_link(ar_serial, read, [FD,self(),"\r\n"]),
-	   		ok = serctl:tcsetattr(FD, tcsanow, Termios),
-			{ok, #state{fd=FD,com_read=Prp,status=#status{id=commons:id(4)}}};
-	   	{error, Reason} -> {stop, Reason}
-	 end.
+init([]) -> {ok, #state{id=commons:id(4)}}.
 
 %% @hidden
 handle_call({mode}, From, #state{to = {P,_}} = State) when State#state.mode =:= file -> {reply, {ok, {file, P}}, State};
 handle_call({mode}, From, State) -> {reply, {ok, {State#state.mode, State#state.to}}, State};
 
-handle_call({mode, file}, {P,T} = From, #state{status = Status} = State) when State#state.mode =:= command -> 
+handle_call({mode, file}, {P,T} = From, State) when State#state.mode =:= command -> 
 	Ref = monitor(process, P),
-	{reply, {ok,Status#status.id}, State#state{mode=file, to=From, mon_ref=Ref}};
+	{reply, {ok,State#state.id}, State#state{mode=file, to=From, mon_ref=Ref}};
 
-handle_call({mode, file}, {P,_} = From, #state{to={P,_}, status = Status} = State) when State#state.mode =:= file ->  {reply, {ok,Status#status.id}, State};
+handle_call({mode, file}, {P,_} = From, #state{to={P,_}} = State) when State#state.mode =:= file ->  {reply, {ok,State#state.id}, State};
 
-handle_call({mode, command}, {P,_} = From, #state{to={F,_}, status = Status} = State) when F =:= P, State#state.mode =:= file -> 
+handle_call({mode, command}, {P,_} = From, #state{to={F,_}} = State) when F =:= P, State#state.mode =:= file -> 
 	demonitor(State#state.mon_ref),
-	{reply, ok, State#state{mode=command, to="",mon_ref="",status=Status#status{id = Status#status.id + 1}}};
+	{reply, ok, State#state{mode=command, to="",mon_ref="",id = State#state.id + 1}};
 
 handle_call({mode, command}, From, State) when State#state.mode =:= command -> {reply, ok, State};
 
@@ -151,7 +141,7 @@ handle_call({ver}, _From, State) -> {reply, {ok, State#state.ver}, State};
 
 handle_call({send, _Cmd}, _From, State) when State#state.fin_state =:= hold -> {reply, {error, not_ready}, State};
 
-handle_call({send, _Cmd}, _From, State) when State#state.ver =:= "" -> {reply, {error, not_ready}, State};
+%handle_call({send, _Cmd}, _From, State) when State#state.ver =:= "" -> {reply, {error, not_ready}, State};
 
 handle_call({send, Cmd}, {P,_} = From, #state{to={F,_}} = State) when F =/= P andalso State#state.mode =:= file -> 
 	{reply, {error, daemon_locked}, State};
@@ -159,11 +149,9 @@ handle_call({send, Cmd}, {P,_} = From, #state{to={F,_}} = State) when F =/= P an
 handle_call({send, _Cmd}, _From, State) when State#state.mode =:= command andalso State#state.fin_state =:= wait -> 
 	{reply, {error, not_ready}, State};
 
-handle_call({send, Cmd}, From, #state{fd=FD,fin_state=_Fs,status=Status} = State) when State#state.fin_state =:= idle ->
-	case serctl:write(FD, list_to_binary(Cmd++["\n"])) of
-		{error, Reason} ->  {stop, Reason, State};
-		_ -> {noreply, State#state{to=From,fin_state=wait,status=Status#status{command=Cmd}}}
-	end;
+handle_call({send, Cmd}, From, State) when State#state.fin_state =:= idle ->
+		ar_serial:send(Cmd), 
+		{noreply, State#state{to=From,fin_state=wait,command=Cmd}};
 
 handle_call({hold}, From, State) when State#state.mode =:= file, State#state.to =/= From -> 
 	{reply, {error, daemon_locked}, State};
@@ -171,20 +159,16 @@ handle_call({hold}, From, State) when State#state.mode =:= file, State#state.to 
 handle_call({hold}, From, State) when State#state.fin_state =:= hold -> 
 	{reply, {error, port_hold}, State};
 
-handle_call({hold}, From, #state{fd = FD, status = Status} = State) ->
-	case serctl:write(FD, list_to_binary("!\n") ) of
-		{error, Reason} ->  {stop, Reason, State};
-		_ -> {noreply, State#state{to=From,fin_state=hold,status=Status#status{command="!"}}}
-	end;
+handle_call({hold}, From, State) ->
+	ar_serial:send("!\n"), 
+	{noreply, State#state{to=From,fin_state=hold,command="!"}};
 
 handle_call({cont}, From, State) when State#state.fin_state =:= file, State#state.to =/= From -> 
 	{reply, {error, daemon_locked}, State};
 
-handle_call({cont}, From, #state{fd = FD, status = Status} = State) ->
-	case serctl:write(FD, list_to_binary("~\n") ) of
-		{error, Reason} ->  {stop, Reason, State};
-		_ -> {noreply, State#state{to=From,fin_state=wait,status=Status#status{command="~" }}}
-	end;
+handle_call({cont}, From, State) ->
+	ar_serial:send("~\n"), 
+	{noreply, State#state{to=From,fin_state=wait,command="~" }}; %% ~
 
 handle_call({stop}, _From, State) ->
     {stop, ok, State};
@@ -193,22 +177,34 @@ handle_call(_Request, _From, State) ->
     {reply, ok, State}.
 
 %% @hidden
+handle_cast({reply, Data}, State) ->
+	Str = State#state.reply ++ Data,
+	case what_happens(Str) of
+		{data, _D} -> 
+				NewState = State#state{reply = Str};
+		Any -> 
+				io:format("Got reply: ~p~n", [Any]), 
+				NewState = State#state{reply = ""},
+				self() ! {data, Any}
+	end, 
+	{noreply, NewState};
+
 handle_cast(_Msg, State) ->
     {noreply, State}.
 
 %% @hidden
-handle_info({data, {banner, V}}, #state{to = {P,T}, status = Status} = State) when State#state.fin_state =:= wait ->
-		gen_server:reply(State#state.to, [{id, Status#status.id},
-											{command, Status#status.command},
+handle_info({data, {banner, V}}, #state{to = {P,T}} = State) when State#state.fin_state =:= wait ->
+		gen_server:reply(State#state.to, [{id, State#state.id},
+											{command, State#state.command},
 											{reply, {version , V}}]),
     	{noreply, State#state{ver=V}};
 
 handle_info({data, {banner, V}}, State) ->
     	{noreply, State#state{ver=V}};
 
-handle_info({data, {A, _V} = Event}, #state{to = {P,T}, status = Status} = State) when State#state.fin_state =:= wait, A =:= button; A =:= sensor ->
+handle_info({data, {A, _V} = Event}, #state{to = {P,T}} = State) when State#state.fin_state =:= wait, A =:= button; A =:= sensor ->
 		gen_server:reply(State#state.to, [{id, 0},
-											{command, Status#status.command},
+											{command, State#state.command},
 											{reply, Event}]),
     	{noreply, State};
 
@@ -221,37 +217,29 @@ handle_info({data, {A, _V} = Event}, State) when  State#state.fin_state =:= idle
 		gen_event:notify(acd_evm, Event), 
     	{noreply, State};
 
-handle_info({data, Rsp}, #state{status=Status} = State) when State#state.fin_state =:= hold ->
-		gen_server:reply(State#state.to, [{id, Status#status.id},
-												{command, Status#status.command},
+handle_info({data, Rsp}, State) when State#state.fin_state =:= hold ->
+		gen_server:reply(State#state.to, [{id, State#state.id},
+												{command, State#state.command},
 												{reply, Rsp}]),
     	{noreply, State};
 
-handle_info({data, Rsp}, #state{status=Status} = State) ->
-		gen_server:reply(State#state.to, [{id, Status#status.id},
-											{command, Status#status.command},
+handle_info({data, Rsp}, State) ->
+		gen_server:reply(State#state.to, [{id, State#state.id},
+											{command, State#state.command},
 											{reply, Rsp}]),
-		Id = if State#state.mode =:= file -> Status#status.id;
-				true -> Status#status.id + 1 end,
-    	{noreply, State#state{fin_state=idle,status=#status{id=Id}}};
+		Id = if State#state.mode =:= file -> State#state.id;
+				true -> State#state.id + 1 end,
+    	{noreply, State#state{fin_state=idle,id=Id}};
 
-handle_info({'DOWN', Ref, process, _From, Info}, #state{mon_ref=Ref, status = Status} = State) ->
+handle_info({'DOWN', Ref, process, _From, Info}, #state{mon_ref=Ref} = State) ->
 	%%% wait for '<Idle' from Arduino, then send Ctrl+X
-	{noreply, State#state{to="",mode=command,mon_ref="", fin_state=idle, status=Status#status{id = Status#status.id + 1}}};
-
-handle_info({'EXIT',Pid,Reason}, #state{fd=_FD,com_read=Pid,status=_Status} = State) -> 
-	if State#state.fin_state =:= wait ->
-			gen_server:reply(State#state.to, {error,{port_close, Reason}});
-		true ->	ok
-	end,  
-	{stop, {port_close, Reason}, State};
+	{noreply, State#state{to="",mode=command,mon_ref="", fin_state=idle, id = State#state.id + 1}};
 
 handle_info(_Msg, State) ->
     {noreply, State}.
 
 %% @hidden
 terminate(_Reason, State) ->
-	serctl:close(State#state.fd), 
     ok.
 
 %% @hidden

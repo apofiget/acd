@@ -9,7 +9,7 @@
 start(_StartType, _StartArgs) ->
     lager:start(),
     gen_event:start_link({local,acd_evm}), 
-    try [ acd_sup:start(A) || A <- [ar_serial, ar_grbl, fm, y_embed]] of
+    try [ acd_sup:start(A) || A <- [ar_grbl, ar_serial, fm, y_embed]] of
     	_-> {ok, self()}
     	catch _:X -> error_logger:error_msg("Error while start: ~p~n", [X])
     end. 
