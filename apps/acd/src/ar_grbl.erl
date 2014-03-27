@@ -15,8 +15,9 @@
 
 -export([start/0]).
 
--export([send/1,stop/0, firmware_version/0, mode/1, 
-		 mode/0, current_status/0, reset_grbl/0, hold/0, cont/0, reply/1]).
+-export([send/1, stop/0, firmware_version/0, mode/1, 
+		 mode/0, current_status/0, reset_grbl/0, feed_hold/0, 
+		 cyrcle_start/0, reply/1]).
 
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2,
          terminate/2, code_change/3]).
@@ -96,18 +97,18 @@ reset_grbl() -> gen_server:call(?MODULE, {send, "\^x"}, commons:get_opt(tty_time
 
 send(Cmd) -> gen_server:call(?MODULE, {send, Cmd}, commons:get_opt(tty_timeout)).
 
-%% @spec hold() -> arduino_reply() | {error, daemon_locked} | {error, port_hold} | {error, not_ready}
+%% @spec feed_hold() -> arduino_reply() | {error, daemon_locked} | {error, port_hold} | {error, not_ready}
 %% @doc Arduino feed hold.
 %% @end
 
-hold() -> gen_server:call(?MODULE, {hold}).
+feed_hold() -> gen_server:call(?MODULE, {hold}).
 
-%% @spec cont() -> arduino_reply() | {error, daemon_locked} | {error, not_ready}
+%% @spec cyrcle_start() -> arduino_reply() | {error, daemon_locked} | {error, not_ready}
 %% @doc Arduino cyrcle start
 %% @end
 
 
-cont() -> gen_server:call(?MODULE, {cont}).
+cyrcle_start() -> gen_server:call(?MODULE, {cont}).
 
 %% @spec firmware_version() -> {ok, string()} | {error, not_ready}
 %% @doc Get Grbl version
@@ -170,7 +171,7 @@ handle_call({cont}, From, State) when State#state.fin_state =:= file, State#stat
 
 handle_call({cont}, From, State) ->
 	ar_serial:send("~\n"), 
-	{noreply, State#state{to=From,fin_state=wait,command="~" }}; %% ~
+	{noreply, State#state{to=From,fin_state=wait,command="\~" }};
 
 handle_call({stop}, _From, State) ->
     {stop, ok, State};
