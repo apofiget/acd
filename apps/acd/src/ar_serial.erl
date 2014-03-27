@@ -162,6 +162,7 @@ handle_info(_Msg, State) ->
 
 %% @hidden
 terminate(_Reason, State) ->
+    exit(State#state.reader, kill), 
     serctl:close(State#state.fd), 
     ok.
 
@@ -170,9 +171,9 @@ code_change(_OldVsn, State, _Extra) ->
     {ok, State}.
 
 %% @hidden
-trace(_Str, "") -> ok;
 trace(Str, Trace) when is_tuple(Trace) ->
-    lager:debug("~p~n",[Str]). 
+    lager:debug("~p~n",[Str]);
+trace(_Str, _) -> ok.
 
 %% @spec read(FD :: pid(), Parent :: pid(), LineEnd :: string()) -> ok
 %% @doc Start serial port reader. Read data from serial port, that identified as low-level
@@ -181,7 +182,6 @@ trace(Str, Trace) when is_tuple(Trace) ->
 %% @end
 
 read(FD, Parent, LineEnd) ->
-    process_flag(trap_exit, true),
     read(FD, 0, [], Parent, LineEnd).
 
 %% @hidden
