@@ -17,7 +17,7 @@
 
 -export([send/1, stop/0, firmware_version/0, mode/1, 
 		 mode/0, current_status/0, reset_grbl/0, feed_hold/0, 
-		 cyrcle_start/0, reply/1]).
+		 cyrcle_start/0, gcode_parameters/0, reply/1]).
 
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2,
          terminate/2, code_change/3]).
@@ -36,7 +36,7 @@
 %% @type arduino_reply() = Tuples
 %%       Tuples = [Tuple]
 %%       Tuple = {id,integer()} | {command, string()} | {reply,Reply}
-%%       Reply = {status,Status} | {version, string()} | {R, I}
+%%       Reply = {status,Status} | {version, string()} | {R, I} | List
 %%       R = ok | error | button | sensor | status | unknown_event
 %%       I = string()
 %%       Status = {ArduinoStatus, ToolPosition}
@@ -90,6 +90,12 @@ current_status() -> gen_server:call(?MODULE, {send, "?"}, commons:get_opt(tty_ti
 %% @end
 
 reset_grbl() -> gen_server:call(?MODULE, {send, "\^x"}, commons:get_opt(tty_timeout)).
+
+%% @spec gcode_parameters() -> arduino_reply() | {error, daemon_locked} | {error, not_ready}
+%% @doc Get Gcode parameters from Arduino.
+%% @end
+
+gcode_parameters() -> gen_server:call(?MODULE, {send, "$#"}, commons:get_opt(tty_timeout)).
 
 %% @spec send(Cmd :: string()) -> arduino_reply() | {error, daemon_locked} | {error, not_ready}
 %% @doc Send command to Arduino
@@ -184,10 +190,23 @@ handle_cast({reply, Data}, State) ->
 	Str = State#state.reply ++ Data,
 	case what_happens(Str) of
 		{data, _D} -> 
-				NewState = State#state{reply = Str};
+			NewState = State#state{reply = Str};
+		{ok, "ok"} -> 
+			NewState = State#state{reply = ""},
+			self() ! {data, {ok, "ok"}};
+		{ok, D} ->
+			NewState = State#state{reply = ""},
+			R = case State#state.command of
+					%%% Gcode parameners
+					"$#" -> 
+						parse_gcode_params(D);
+					_ -> D
+
+				end,
+			self() ! {data, R};
 		Any -> 
-				NewState = State#state{reply = ""},
-				self() ! {data, Any}
+			NewState = State#state{reply = ""},
+			self() ! {data, Any}
 	end, 
 	{noreply, NewState};
 
@@ -320,3 +339,11 @@ what_happens(Str) ->
 what_happens(Str,false,[H|T]) -> what_happens(Str,H(Str),T);
 what_happens(Str,false,[]) -> {data, Str};
 what_happens(Str,R,_L) -> R.
+
+%% @hidden
+parse_gcode_params(L) ->
+	parse_gcode_params(string:tokens(L,"[]:\r\n"),[]).
+parse_gcode_params(["ok"], Acc) -> Acc;
+parse_gcode_params([], Acc) -> Acc;
+parse_gcode_params([H1,H2|T],Acc) ->
+	parse_gcode_params(T, Acc ++ [{H1,list_to_tuple(string:tokens(H2, ","))}]).
