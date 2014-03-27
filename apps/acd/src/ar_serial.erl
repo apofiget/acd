@@ -54,14 +54,17 @@ stop_trace() -> gen_server:call(?MODULE, {stop_trace}).
 reset_device() -> gen_server:cast(?MODULE, {reset}). 
 
 %% @spec start(Params) -> {ok, Pid :: pid()} | {stop, Error :: any()}
-%%      Params = {Module, Function, LineEndCharacters} | {Fun, LineEndCharacters}
+%%      Params = {Module, Function, LineEndCharacters} | {Fun, LineEndCharacters} | Fun
 %%      Module = atom()
 %%      Function = atom()
 %%      Fun = fun()
 %%      LineEndCharacters = string()
 %% @doc Start communication server, with given callback specified as {Module, Function, LineEndCharacters} <br/>
-%% or {Fun, LineEndCharacters}.
+%% , {Fun, LineEndCharacters} or Fun. When is only Fun given, LineEndCharacters is "\r\n".
 %% @end
+
+start(F) when is_function(F) ->  
+    gen_server:start_link({local, ?MODULE}, ?MODULE, [{"", F, "\r\n"}], []);
 
 start({F,LineEnd}) when is_function(F) -> 
     gen_server:start_link({local, ?MODULE}, ?MODULE, [{"", F, LineEnd}], []);

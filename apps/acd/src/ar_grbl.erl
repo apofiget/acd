@@ -38,9 +38,9 @@
 %%       Reply = {status,Status} | {version, string()} | {R, I}
 %%       R = ok | error | button | sensor | status | unknown_event
 %%       I = string()
-%%       Status = {{state,ArduinoStatus}, {position,ToolPosition}}
-%%       ArduinoStatus = string()
-%%       ToolPosition = string()
+%%       Status = {ArduinoStatus, ToolPosition}
+%%       ArduinoStatus = {status, string()}
+%%       ToolPosition = {position, {mpos,{string(), string(), string()}, wpos,{string(), string(), string()}}}
 
 %% @spec start() -> {ok, pid()} | {error, Reason}
 %% @doc Start gen_server
@@ -116,7 +116,9 @@ cont() -> gen_server:call(?MODULE, {cont}).
 firmware_version() -> gen_server:call(?MODULE, {ver}). 
 
 %% @hidden
-init([]) -> {ok, #state{id=commons:id(4)}}.
+init([]) -> 
+	{ok, Tref} = timer:apply_after(10, ?MODULE, reset_grbl, []),
+	{ok, #state{id=commons:id(4)}}.
 
 %% @hidden
 handle_call({mode}, From, #state{to = {P,_}} = State) when State#state.mode =:= file -> {reply, {ok, {file, P}}, State};
@@ -183,7 +185,6 @@ handle_cast({reply, Data}, State) ->
 		{data, _D} -> 
 				NewState = State#state{reply = Str};
 		Any -> 
-				io:format("Got reply: ~p~n", [Any]), 
 				NewState = State#state{reply = ""},
 				self() ! {data, Any}
 	end, 
@@ -287,14 +288,13 @@ is_sensor(E) ->
 
 %% @hidden
 is_status(E) ->
- 	case commons:re_match("^\<", E) of
-		{match,_} -> 
-			[H|T] = string:tokens(E, ","),
-			Tl = string:join(T, ","), 
-			Sp = string:str(Tl, ">") - 1,
-			Pos = string:substr(Tl, 1, Sp),  
-			{status, {{state,hd(string:tokens(H, "<"))},{position,Pos}}};
-		_ -> false
+	case re:split(E, "(\<|:|,|\>)") of 
+		[<<>>,<<"<">>,Status,<<",">>,<<"MPos">>,<<":">>,Mp1,<<",">>,
+		Mp2,<<",">>,Mp3,<<",">>,<<"WPos">>,<<":">>,
+		Wp1,<<",">>,Wp2,<<",">>,Wp3,<<">">>,<<"\r\n">>] ->
+			{status, {{state,binary_to_list(Status)},{position,{mpos,{binary_to_list(Mp1),binary_to_list(Mp2), binary_to_list(Mp3)}},
+					{wpos,{binary_to_list(Wp1), binary_to_list(Wp2), binary_to_list(Wp3)}}}}};
+		_->	false
 	end.
 
 %% @hidden
