@@ -24,16 +24,19 @@
 
 <h3 class="typedecl"><a name="type-arduino_reply">arduino_reply()</a></h3>
 <p><tt>arduino_reply() = Tuples</tt>
-<ul class="definitions"><li><tt>Tuples = [Tuple]</tt></li><li><tt>Tuple = {id, integer()} | {command, string()} | {reply, Reply}</tt></li><li><tt>Reply = {status, Status} | {version, string()} | {R, I}</tt></li><li><tt>R = ok | error | button | sensor | status | unknown_event</tt></li><li><tt>I = string()</tt></li><li><tt>Status = {ArduinoStatus, ToolPosition}</tt></li><li><tt>ArduinoStatus = {status, string()}</tt></li><li><tt>ToolPosition = {position, {mpos, {string(), string(), string()}, wpos, {string(), string(), string()}}}</tt></li></ul></p>
+<ul class="definitions"><li><tt>Tuples = [Tuple]</tt></li><li><tt>Tuple = {id, integer()} | {command, string()} | {reply, Reply}</tt></li><li><tt>Reply = {status, Status} | {version, string()} | {R, I} | List</tt></li><li><tt>R = ok | error | button | sensor | status | unknown_event</tt></li><li><tt>I = string()</tt></li><li><tt>Status = {ArduinoStatus, ToolPosition}</tt></li><li><tt>ArduinoStatus = {status, string()}</tt></li><li><tt>ToolPosition = {position, {mpos, {string(), string(), string()}, wpos, {string(), string(), string()}}}</tt></li></ul></p>
 
 
 <h2><a name="index">Function Index</a></h2>
-<table width="100%" border="1" cellspacing="0" cellpadding="2" summary="function index"><tr><td valign="top"><a href="#cont-0">cont/0</a></td><td>Arduino cyrcle start.</td></tr>
-<tr><td valign="top"><a href="#current_status-0">current_status/0</a></td><td>Get current Arduino status and tool position.</td></tr>
+<table width="100%" border="1" cellspacing="0" cellpadding="2" summary="function index"><tr><td valign="top"><a href="#current_status-0">current_status/0</a></td><td>Get current Arduino status and tool position.</td></tr>
+<tr><td valign="top"><a href="#cyrcle_start-0">cyrcle_start/0</a></td><td>Arduino cyrcle start.</td></tr>
+<tr><td valign="top"><a href="#feed_hold-0">feed_hold/0</a></td><td>Arduino feed hold.</td></tr>
 <tr><td valign="top"><a href="#firmware_version-0">firmware_version/0</a></td><td>Get Grbl version.</td></tr>
-<tr><td valign="top"><a href="#hold-0">hold/0</a></td><td>Arduino feed hold.</td></tr>
+<tr><td valign="top"><a href="#gcode_parameters-0">gcode_parameters/0</a></td><td>Get Gcode parameters from Arduino.</td></tr>
 <tr><td valign="top"><a href="#mode-0">mode/0</a></td><td>Get current work mode.</td></tr>
 <tr><td valign="top"><a href="#mode-1">mode/1</a></td><td>Set gen_server internal mode.</td></tr>
+<tr><td valign="top"><a href="#parameters-0">parameters/0</a></td><td>Get Arduino parameters.</td></tr>
+<tr><td valign="top"><a href="#parser_state-0">parser_state/0</a></td><td>Get Grbl parser state from Arduino.</td></tr>
 <tr><td valign="top"><a href="#reply-1">reply/1</a></td><td>Get reply from serial port.</td></tr>
 <tr><td valign="top"><a href="#reset_grbl-0">reset_grbl/0</a></td><td>Make Arduino reset - send Ctrl+X to controller.</td></tr>
 <tr><td valign="top"><a href="#send-1">send/1</a></td><td>Send command to Arduino.</td></tr>
@@ -43,25 +46,30 @@
 
 <h2><a name="functions">Function Details</a></h2>
 
-<h3 class="function"><a name="cont-0">cont/0</a></h3>
-<div class="spec">
-<p><tt>cont() -&gt; <a href="#type-arduino_reply">arduino_reply()</a> | {error, daemon_locked} | {error, not_ready}</tt><br></p>
-</div><p>Arduino cyrcle start</p>
-
 <h3 class="function"><a name="current_status-0">current_status/0</a></h3>
 <div class="spec">
 <p><tt>current_status() -&gt; <a href="#type-arduino_reply">arduino_reply()</a> | {error, daemon_locked} | {error, not_ready}</tt><br></p>
 </div><p>Get current Arduino status and tool position</p>
+
+<h3 class="function"><a name="cyrcle_start-0">cyrcle_start/0</a></h3>
+<div class="spec">
+<p><tt>cyrcle_start() -&gt; <a href="#type-arduino_reply">arduino_reply()</a> | {error, daemon_locked} | {error, not_ready}</tt><br></p>
+</div><p>Arduino cyrcle start</p>
+
+<h3 class="function"><a name="feed_hold-0">feed_hold/0</a></h3>
+<div class="spec">
+<p><tt>feed_hold() -&gt; <a href="#type-arduino_reply">arduino_reply()</a> | {error, daemon_locked} | {error, port_hold} | {error, not_ready}</tt><br></p>
+</div><p>Arduino feed hold.</p>
 
 <h3 class="function"><a name="firmware_version-0">firmware_version/0</a></h3>
 <div class="spec">
 <p><tt>firmware_version() -&gt; {ok, string()} | {error, not_ready}</tt><br></p>
 </div><p>Get Grbl version</p>
 
-<h3 class="function"><a name="hold-0">hold/0</a></h3>
+<h3 class="function"><a name="gcode_parameters-0">gcode_parameters/0</a></h3>
 <div class="spec">
-<p><tt>hold() -&gt; <a href="#type-arduino_reply">arduino_reply()</a> | {error, daemon_locked} | {error, port_hold} | {error, not_ready}</tt><br></p>
-</div><p>Arduino feed hold.</p>
+<p><tt>gcode_parameters() -&gt; <a href="#type-arduino_reply">arduino_reply()</a> | {error, daemon_locked} | {error, not_ready}</tt><br></p>
+</div><p>Get Gcode parameters from Arduino.</p>
 
 <h3 class="function"><a name="mode-0">mode/0</a></h3>
 <div class="spec">
@@ -75,6 +83,16 @@
 </div><p>Set gen_server internal mode.
   In "file" mode, "send" function calls allowed only from process that set's "file" mode
   In "command" mode, "send" function calls allowed from any process</p>
+
+<h3 class="function"><a name="parameters-0">parameters/0</a></h3>
+<div class="spec">
+<p><tt>parameters() -&gt; <a href="#type-arduino_reply">arduino_reply()</a> | {error, daemon_locked} | {error, not_ready}</tt><br></p>
+</div><p>Get Arduino parameters.</p>
+
+<h3 class="function"><a name="parser_state-0">parser_state/0</a></h3>
+<div class="spec">
+<p><tt>parser_state() -&gt; <a href="#type-arduino_reply">arduino_reply()</a> | {error, daemon_locked} | {error, not_ready}</tt><br></p>
+</div><p>Get Grbl parser state from Arduino.</p>
 
 <h3 class="function"><a name="reply-1">reply/1</a></h3>
 <div class="spec">
@@ -105,6 +123,6 @@
 <hr>
 
 <div class="navbar"><a name="#navbar_bottom"></a><table width="100%" border="0" cellspacing="0" cellpadding="2" summary="navigation bar"><tr><td><a href="overview-summary.html" target="overviewFrame">Overview</a></td><td><a href="http://www.erlang.org/"><img src="erlang.png" align="right" border="0" alt="erlang logo"></a></td></tr></table></div>
-<p><i>Generated by EDoc, Mar 27 2014, 12:21:01.</i></p>
+<p><i>Generated by EDoc, Mar 27 2014, 17:10:41.</i></p>
 </body>
 </html>
