@@ -18,7 +18,7 @@
 -export([send/1, stop/0, firmware_version/0, mode/1, 
 		 mode/0, current_status/0, reset_grbl/0, feed_hold/0, 
 		 cyrcle_start/0, gcode_parameters/0, parser_state/0,
-		 parameters/0, reply/1]).
+		 parameters/0, kill_alarm/0, run_homing_cycle/0, reply/1]).
 
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2,
          terminate/2, code_change/3]).
@@ -79,6 +79,18 @@ mode(M) -> gen_server:call(?MODULE, {mode, M}).
 %% @end
 
 mode() -> gen_server:call(?MODULE, {mode}).
+
+%% @spec run_homing_cyrcle() -> arduino_reply() | {error, daemon_locked} | {error, not_ready}
+%% @doc Run homing cycle
+%% @end
+
+run_homing_cycle() -> gen_server:call(?MODULE, {send, "$H"}, commons:get_opt(tty_timeout)).
+
+%% @spec kill_alarm() -> arduino_reply() | {error, daemon_locked} | {error, not_ready}
+%% @doc Kill alarm lock
+%% @end
+
+kill_alarm() -> gen_server:call(?MODULE, {send, "$X"}, commons:get_opt(tty_timeout)).
 
 %% @spec current_status() -> arduino_reply() | {error, daemon_locked} | {error, not_ready}
 %% @doc Get current Arduino status and tool position
@@ -273,7 +285,6 @@ handle_info({data, Rsp}, State) ->
     	{noreply, State#state{fin_state=idle,id=Id}};
 
 handle_info({'DOWN', Ref, process, _From, Info}, #state{mon_ref=Ref} = State) ->
-	%%% wait for '<Idle' from Arduino, then send Ctrl+X
 	{noreply, State#state{to="",mode=command,mon_ref="", fin_state=idle, id = State#state.id + 1}};
 
 handle_info(_Msg, State) ->
