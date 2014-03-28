@@ -37,7 +37,7 @@
 %% @type arduino_reply() = Tuples
 %%       Tuples = [Tuple]
 %%       Tuple = {id,integer()} | {command, string()} | {reply,Reply}
-%%       Reply = {status,Status} | {version, string()} | {R, I} | List
+%%       Reply = {status,Status} | {version, string()} | {R, I} | list()
 %%       R = ok | error | button | sensor | status | unknown_event
 %%       I = string()
 %%       Status = {ArduinoStatus, ToolPosition}
@@ -80,7 +80,7 @@ mode(M) -> gen_server:call(?MODULE, {mode, M}).
 
 mode() -> gen_server:call(?MODULE, {mode}).
 
-%% @spec run_homing_cyrcle() -> arduino_reply() | {error, daemon_locked} | {error, not_ready}
+%% @spec run_homing_cycle() -> arduino_reply() | {error, daemon_locked} | {error, not_ready}
 %% @doc Run homing cycle
 %% @end
 
