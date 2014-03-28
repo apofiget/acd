@@ -220,7 +220,7 @@ runfile(P,F) ->
  if LS =:= ok ->
 	case file:open(?FS_BASE ++ F,[binary,read_ahead]) of
 		{ok, Io} -> 
-			case ar_com:mode(file) of
+			case ar_grbl:mode(file) of
 				{ok, Id} ->  
 						proc_lib:init_ack(P, {ok, Id}),
 						try line_by_line(Io, Id, F, 1) 
@@ -248,7 +248,7 @@ line_by_line(Io, Id, F, L) ->
 										{message,list_to_binary(json2:encode(json2:obj_from_list([{runid, Id},{file_line, F ++ ":" ++ integer_to_list(L)},{message, atom_to_binary(E, utf8)}])))}});
 		{ok, D} ->
 			%io:format("Stream file ~p from ~p, Runid: ~p , Line: ~p/~p~n", [F, Io, Id, D, L]),
-			case strip_line(D, fun(S) -> ar_com:send(commons:clear_lf(binary_to_list(S))) end ) of
+			case strip_line(D, fun(S) -> ar_grbl:send(commons:clear_lf(binary_to_list(S))) end ) of
 				[] ->   gen_event:notify(acd_evm, {{runid, Id},
 											{message,list_to_binary(json2:encode(json2:obj_from_list([{runid, Id},{file_line, F ++ ":" ++ integer_to_list(L)},{cmd, ""},{reply, ""}])))}}),
 						line_by_line(Io, Id, F, L+1);
