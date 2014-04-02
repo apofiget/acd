@@ -17,7 +17,7 @@ Client = string:join([inet:ntoa(ClIP), integer_to_list(Clp) ], ":"),
 %% @private
 handle_open(WSState, State) -> 
     gen_event:add_sup_handler(acd_evm, {acd_ev_ws_handler, State#state.self}, State#state.self),
-    error_logger:info_msg("Client connect: ~p~n", [State#state.client]), 
+    lager:info("Client connect: ~p~n", [State#state.client]), 
     {ok, State#state{ws=WSState}}.
 
 %% @private
@@ -49,7 +49,7 @@ handle_info(_Msg, State) ->
 
 %% @private
 terminate(_Reason, State) ->
-    error_logger:info_msg("Client disconnect: ~p~n", [State#state.client]), 
+    lager:info("Client disconnect: ~p~n", [State#state.client]), 
     gen_event:delete_handler(snms_ev, {snms_ev_ws_handler, State#state.self}, normal),
     ok.
 
@@ -59,8 +59,8 @@ decode_msg(M) ->
     try jiffy:decode(M)  of
         {[{<<"command">>,<<"ls">>}]} -> {command, ls};
         {[{<<"command">>,<<"ls">>},{<<"mask", Mask>>}]} -> [{command, ls},{mask, binary_to_list(Mask)}];
-        E -> error_logger:error_msg("Msg: ~p~n", [E]), []
+        E -> lager:error("Msg: ~p~n", [E]), []
     catch _:E -> 
-        error_logger:error_msg("Error ~p~n", [E]),
+        lager:error("Error ~p~n", [E]),
         []
     end. 

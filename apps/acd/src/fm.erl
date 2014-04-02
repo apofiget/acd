@@ -224,7 +224,7 @@ runfile(P,F) ->
 				{ok, Id} ->  
 						proc_lib:init_ack(P, {ok, Id}),
 						try line_by_line(Io, Id, F, 1) 
-							catch _:E -> error_logger:error_msg("Runtime error: ~p:~p - ~p~n", [?MODULE, ?LINE, E])
+							catch _:E -> lager:error("Runtime error: ~p:~p - ~p~n", [?MODULE, ?LINE, E])
 						end, 
 						file:close(Io);
 				R ->	

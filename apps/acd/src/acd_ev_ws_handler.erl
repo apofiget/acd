@@ -10,7 +10,7 @@
 init(Pid) -> {ok, Pid}.
 
 handle_event(Event, State) -> 
-    error_logger:info_msg("Event: ~p~n", [Event]), 
+    lager:info("Event: ~p~n", [Event]), 
 {ok, State}.
 
 handle_call(_Msg, State) -> {ok, [], State}.
