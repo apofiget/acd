@@ -250,16 +250,16 @@ handle_info({data, {banner, V}}, #state{to = {P,T}} = State) when State#state.fi
 		gen_server:reply(State#state.to, [{id, State#state.id},
 											{command, State#state.command},
 											{reply, {version , V}}]),
-    	{noreply, State#state{ver=V}};
+    	{noreply, State#state{ver = V, fin_state = idle}};
 
 handle_info({data, {banner, V}}, State) ->
-    	{noreply, State#state{ver=V}};
+    	{noreply, State#state{ver = V, fin_state = idle}};
 
 handle_info({data, {A, _V} = Event}, #state{to = {P,T}} = State) when State#state.fin_state =:= wait, A =:= button; A =:= sensor ->
 		gen_server:reply(State#state.to, [{id, 0},
 											{command, State#state.command},
 											{reply, Event}]),
-    	{noreply, State};
+    	{noreply, State#state{fin_state = idle}};
 
 handle_info({data, {A, _V} = Event}, State) when  A =:= button; A =:= sensor ->
 		gen_event:notify(acd_evm, Event), 
