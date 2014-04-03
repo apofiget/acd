@@ -18,7 +18,8 @@
 -export([send/1, stop/0, firmware_version/0, mode/1, 
 		 mode/0, current_status/0, reset_grbl/0, feed_hold/0, 
 		 cycle_start/0, gcode_parameters/0, parser_state/0,
-		 parameters/0, kill_alarm/0, run_homing_cycle/0, reply/1]).
+		 parameters/0, kill_alarm/0, run_homing_cycle/0, reply/1,
+		 start_console_trace/0, stop_console_trace/0]).
 
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2,
          terminate/2, code_change/3]).
@@ -147,12 +148,32 @@ cycle_start() -> gen_server:call(?MODULE, {cont}).
 
 firmware_version() -> gen_server:call(?MODULE, {ver}). 
 
+%% spec start_console_trace() -> Result = ok | {'EXIT',term()} | term()
+%% @doc Start trace async events to console
+%% @end
+
+start_console_trace() -> gen_server:call(?MODULE, {add_handler}).
+
+%% spec stop_console_trace() -> term() | {error,module_not_found} | {'EXIT',term()}
+%% @doc Stop trace async events to console
+%% @end
+
+stop_console_trace() -> gen_server:call(?MODULE, {del_handler}).
+
 %% @hidden
 init([]) -> 
 	{ok, Tref} = timer:apply_after(10, ?MODULE, reset_grbl, []),
 	{ok, #state{id=commons:id(4)}}.
 
 %% @hidden
+handle_call({add_handler}, _From, State) -> 
+	R = gen_event:add_sup_handler(ar_evm, {ar_grbl_handler, self()}, []),
+	{reply, R, State};
+
+handle_call({del_handler}, _From, State) -> 
+	R = gen_event:delete_handler(ar_evm, {ar_grbl_handler, self()}, normal),
+	{reply, R, State};
+
 handle_call({mode}, From, #state{to = {P,_}} = State) when State#state.mode =:= file -> {reply, {ok, {file, P}}, State};
 handle_call({mode}, From, State) -> {reply, {ok, {State#state.mode, State#state.to}}, State};
 
@@ -252,7 +273,8 @@ handle_info({data, {banner, V}}, #state{to = {P,T}} = State) when State#state.fi
 											{reply, {version , V}}]),
     	{noreply, State#state{ver = V, fin_state = idle}};
 
-handle_info({data, {banner, V}}, State) ->
+handle_info({data, {banner, V} = Event}, State) ->
+		gen_event:notify(ar_evm, Event), 
     	{noreply, State#state{ver = V, fin_state = idle}};
 
 handle_info({data, {A, _V} = Event}, #state{to = {P,T}} = State) when State#state.fin_state =:= wait, A =:= button; A =:= sensor ->
@@ -262,12 +284,12 @@ handle_info({data, {A, _V} = Event}, #state{to = {P,T}} = State) when State#stat
     	{noreply, State#state{fin_state = idle}};
 
 handle_info({data, {A, _V} = Event}, State) when  A =:= button; A =:= sensor ->
-		gen_event:notify(acd_evm, Event), 
+		gen_event:notify(ar_evm, Event), 
     	{noreply, State};
 
 
 handle_info({data, {A, _V} = Event}, State) when  State#state.fin_state =:= idle ->
-		gen_event:notify(acd_evm, Event), 
+		gen_event:notify(ar_evm, Event), 
     	{noreply, State};
 
 handle_info({data, Rsp}, State) when State#state.fin_state =:= hold ->

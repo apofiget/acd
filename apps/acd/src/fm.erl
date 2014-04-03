@@ -241,30 +241,30 @@ end.
 line_by_line(Io, Id, F, L) -> 
 	case file:read_line(Io) of
 		eof ->
-			gen_event:notify(acd_evm, {{runid, Id},
+			gen_event:notify(ar_evm, {{runid, Id},
 										{message,list_to_binary(json2:encode(json2:obj_from_list([{runid, Id},{file_line, F ++ ":" ++ integer_to_list(L)},{message, "eof"}])))}});
 		{error, E} ->
-			gen_event:notify(acd_evm, {{runid, Id},
+			gen_event:notify(ar_evm, {{runid, Id},
 										{message,list_to_binary(json2:encode(json2:obj_from_list([{runid, Id},{file_line, F ++ ":" ++ integer_to_list(L)},{message, atom_to_binary(E, utf8)}])))}});
 		{ok, D} ->
 			%io:format("Stream file ~p from ~p, Runid: ~p , Line: ~p/~p~n", [F, Io, Id, D, L]),
 			case strip_line(D, fun(S) -> ar_grbl:send(commons:clear_lf(binary_to_list(S))) end ) of
-				[] ->   gen_event:notify(acd_evm, {{runid, Id},
+				[] ->   gen_event:notify(ar_evm, {{runid, Id},
 											{message,list_to_binary(json2:encode(json2:obj_from_list([{runid, Id},{file_line, F ++ ":" ++ integer_to_list(L)},{cmd, ""},{reply, ""}])))}}),
 						line_by_line(Io, Id, F, L+1);
 				[{id, Id},{command,Cmd}, {reply, {error, E}}] -> 
-						gen_event:notify(acd_evm, {{runid, Id},
+						gen_event:notify(ar_evm, {{runid, Id},
 											{message,list_to_binary(json2:encode(json2:obj_from_list([{runid, Id},{file_line, F ++ ":" ++ integer_to_list(L)},{cmd, ""},{reply, E}])))}}),
 						exit([{error, E},{file_line,{F,L}}]);
 				[{id, 0},{command,Cmd}, {reply, Event}] ->
-						gen_event:notify(acd_evm, {{runid, 0},{message,Event}}),
+						gen_event:notify(ar_evm, {{runid, 0},{message,Event}}),
 						exit([{event, Event},{file_line,{F,L}}]);
 				[{id, Id},{command,Cmd}, {reply, {ok, "ok"}}] ->	
-						gen_event:notify(acd_evm, {{runid, Id},
+						gen_event:notify(ar_evm, {{runid, Id},
 											{message,list_to_binary(json2:encode(json2:obj_from_list([{runid, Id},{file_line, F ++ ":" ++ integer_to_list(L)},{cmd, Cmd},{reply, "ok"}])))}}),
 						line_by_line(Io, Id, F, L+1);
 				{error, E} -> 
-						gen_event:notify(acd_evm, {{runid, Id},
+						gen_event:notify(ar_evm, {{runid, Id},
 											{message,list_to_binary(json2:encode(json2:obj_from_list([{runid, Id},{file_line, F ++ ":" ++ integer_to_list(L)},{error, atom_to_binary(E, utf8) }])))}}),
 						exit([{error, E},{file_line,{F,L}}])
 			end

@@ -16,7 +16,7 @@ Client = string:join([inet:ntoa(ClIP), integer_to_list(Clp) ], ":"),
 
 %% @private
 handle_open(WSState, State) -> 
-    gen_event:add_sup_handler(acd_evm, {acd_ev_ws_handler, State#state.self}, State#state.self),
+    gen_event:add_sup_handler(ar_evm, {acd_ev_ws_handler, State#state.self}, State#state.self),
     lager:info("Client connect: ~p~n", [State#state.client]), 
     {ok, State#state{ws=WSState}}.
 
