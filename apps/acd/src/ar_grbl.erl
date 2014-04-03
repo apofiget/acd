@@ -17,7 +17,7 @@
 
 -export([send/1, stop/0, firmware_version/0, mode/1, 
 		 mode/0, current_status/0, reset_grbl/0, feed_hold/0, 
-		 cyrcle_start/0, gcode_parameters/0, parser_state/0,
+		 cycle_start/0, gcode_parameters/0, parser_state/0,
 		 parameters/0, kill_alarm/0, run_homing_cycle/0, reply/1]).
 
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2,
@@ -134,12 +134,12 @@ send(Cmd) -> gen_server:call(?MODULE, {send, Cmd}, commons:get_opt(tty_timeout))
 
 feed_hold() -> gen_server:call(?MODULE, {hold}).
 
-%% @spec cyrcle_start() -> arduino_reply() | {error, daemon_locked} | {error, not_ready}
-%% @doc Arduino cyrcle start
+%% @spec cycle_start() -> arduino_reply() | {error, daemon_locked} | {error, not_ready}
+%% @doc Arduino cycle start
 %% @end
 
 
-cyrcle_start() -> gen_server:call(?MODULE, {cont}).
+cycle_start() -> gen_server:call(?MODULE, {cont}).
 
 %% @spec firmware_version() -> {ok, string()} | {error, not_ready}
 %% @doc Get Grbl version
