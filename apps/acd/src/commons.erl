@@ -49,7 +49,7 @@ unix_ts() ->
 
 date4js({{Y, M, D}, {H, Min, S}}) ->
     lists:flatten(io_lib:format('~4..0b-~2..0b-~2..0b ~2..0b:~2..0b:~2..0b',
-				[Y, M, D, H, Min, S])).
+        [Y, M, D, H, Min, S])).
 
 %% @spec re_match(R :: string(), S :: string()) -> nomatch | {match, list()}
 %% @doc
@@ -57,10 +57,10 @@ date4js({{Y, M, D}, {H, Min, S}}) ->
 %% @end
 
 re_match(Re,Subj) ->
-	case re:compile(Re) of
-		{ok, M} -> re:run(Subj, M, [{capture,all,binary},{newline, anycrlf}]);
-		_ -> nomatch
-	end.
+  case re:compile(Re) of
+    {ok, M} -> re:run(Subj, M, [{capture,all,binary},{newline, anycrlf}]);
+    _ -> nomatch
+  end.
 
 %% @spec base_dir(A :: atom()) -> string()
 %% @doc

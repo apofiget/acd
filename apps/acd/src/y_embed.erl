@@ -18,20 +18,18 @@ run() ->
          {server_signature, "Yaws"},
          {log_wrap_size, 1048576},
          {copy_error_log, false},
-		 {logdir, Dir ++ "/priv/logs/www"},
-		 {ebin_dir, [Dir ++ "/ebin"]}],
+         {logdir, Dir ++ "/priv/logs/www"},
+         {ebin_dir, [Dir ++ "/ebin"]}],
     Docroot = Dir ++ "/www",
     SconfList = 
         [{port, 8888}, 
          {access_log, true},
-		 {dir_listings, false},
-		 {servername, commons:get_opt(yaws_host)},
-		 {listen, {0, 0, 0, 0}}, 
+         {dir_listings, false},
+         {servername, commons:get_opt(yaws_host)},
+         {listen, {0, 0, 0, 0}}, 
          {docroot, Docroot}],
     {ok, SCList, GC, ChildSpecs} =
-	yaws_api:embedded_start_conf(Docroot, SconfList,
-				     GconfList, Id),
-    [supervisor:start_child(y_embed_sup, Ch)
-     || Ch <- ChildSpecs],
+    yaws_api:embedded_start_conf(Docroot, SconfList, GconfList, Id),
+    [supervisor:start_child(y_embed_sup, Ch) || Ch <- ChildSpecs],
     yaws_api:setconf(GC, SCList),
     {ok, self()}.

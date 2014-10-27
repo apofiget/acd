@@ -12,13 +12,13 @@
 -define(CHILD(I, Type, WType, Param), {I, {I, start, Param}, WType, 5000, Type, [I]}).
 
 start(Mod) -> supervisor:start_link({local,
-			   	list_to_atom(atom_to_list(Mod) ++ "_sup")},
-			  	?MODULE, [Mod]).
+          list_to_atom(atom_to_list(Mod) ++ "_sup")},
+          ?MODULE, [Mod]).
 
 init([y_embed]) ->
     io:format("~n***yaws start...~w~n", [self()]),
     YBed = {y_embed, {y_embed, start, []}, permanent, 2000,
-	    worker, [y_embed]},
+      worker, [y_embed]},
     {ok, {{one_for_all, 0, 1}, [YBed]}};
 
 init([Mod]) ->
@@ -27,6 +27,6 @@ init([Mod]) ->
     MaxRestarts = 30,
     MaxSecondsBetweenRestarts = 1,
     SupFlags = {RestartStrategy, MaxRestarts,
-		MaxSecondsBetweenRestarts},
+    MaxSecondsBetweenRestarts},
     {ok, {SupFlags, [?CHILD(Mod,worker,permanent,[])]}}.
 

@@ -5,7 +5,7 @@
 -compile([{parse_transform, lager_transform}]).
 
 -export([code_change/3, handle_call/2, handle_event/2,
-	 handle_info/2, init/1, terminate/2]).
+   handle_info/2, init/1, terminate/2]).
 
 init(Pid) -> {ok, Pid}.
 
